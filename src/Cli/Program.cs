@@ -9,6 +9,12 @@ var collection = database.GetCollection<Event>("Events");
 
 // Create
 var @event = new Event("Ted Heeran concert", DateTime.UtcNow.AddDays(7));
+@event.Tickets.AddRange(new[]
+{
+    new Ticket("Dora the Explorer"),
+    new Ticket("Dora the Destroyer"),
+    new Ticket("Dora the Destroyer"),
+});
 await collection.InsertOneAsync(@event);
 
 // Read
@@ -16,9 +22,14 @@ var readEvent = await collection.Find(it => it.Id == @event.Id).FirstOrDefaultAs
 Console.WriteLine($"Read event: {readEvent}");
 
 // Update
-var updatedEvent = readEvent with { Title = "Taylor Slow concert" };
-var replaceResult = await collection.ReplaceOneAsync(it => it.Id == @event.Id, updatedEvent);
-Console.WriteLine($"Replace result: {replaceResult.MatchedCount}");
+var filter = Builders<Event>.Filter;
+var eventAndClientFilter = filter.And(
+    filter.Eq(it => it.Id, @event.Id),
+    filter.ElemMatch(it => it.Tickets, t => t.Client == "Dora the Destroyer")
+);
+var update = Builders<Event>.Update.Set(it => it.Tickets[-1].Client, "Dora the Pacifist");
+var updateResult = await collection.UpdateOneAsync(eventAndClientFilter, update);
+Console.WriteLine($"Replace result: {updateResult.MatchedCount}");
 
 // Delete
 var deleteResult = await collection.DeleteManyAsync(it => it.StartsAt <= DateTime.UtcNow.AddMonths(1));
